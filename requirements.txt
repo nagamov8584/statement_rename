@@ -1,1 +1,12 @@
 streamlit
+PyPDF2
+pdfminer.six
+pdfplumber
+pdf2image
+Pillow
+tesseract
+st-gsheets-connection 
+streamlit-pdf-viewer
+streamlit_extras
+pybase64
+openpyxl
