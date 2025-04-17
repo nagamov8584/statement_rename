@@ -9,6 +9,7 @@ import os
 import re
 import zipfile
 import io
+from io import StringIO
 import base64
 
 st.set_page_config(
@@ -17,11 +18,86 @@ st.set_page_config(
 
 def extract(lst):
     return [item[0] for item in lst]
+#Afimall statements
+
 def find_account(input_string):
     res = re.search(r'\d{20}', input_string)
     return res[0]
+def read_file(file):
+    # get UploadedFile data type
+    content_bytes = file.getvalue() # we get bytes
+    content_string = StringIO(content_bytes.decode("cp1251"))
+    return content_string 
+def write_files(container, data):
+    #for line in data:
+    #    container.write(line)
+        #container.write(line.decode('cp1251'))
+
+    containers = []
+    container = []
+    #
+    for line in data:
+        if "Получатель=" in line:
+            container.append(line)
+            containers.append(container)
+            container = []
+        elif "СекцияРасчСчет" in line:
+            containers.append(container)
+            container = []
+            container.append(line)
+        else:
+            container.append(line)
+    containers.append(container)
+    #
+    header = containers[0]
+    date = containers[1][:2]
+    accounts = [[x] for x in containers[1][2:]]
+    statements = containers[2:]
+    ending = ['КонецФайла']
+    #
+    txt_files = []
+    #
+    for iter_account, iter_statement in zip(accounts, statements):
+        iter_file = ''
+
+        iter_file = header + date  + iter_account + iter_statement + ending
+        txt_files.append(iter_file)
+
+    return accounts, txt_files
+def create_zip_txt(files_to_zip, rename_list):
+        zip_buffer = io.BytesIO()
+        # Create a Zip file in memory
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+
+            for account in files_to_zip:
+                    recorded_file = files_to_zip[account]
+                    pdf_name = rename_db[rename_db['account'] == account]['file_name'].values[0] + '.pdf'
+                    #st.write(account, ' ---> ', pdf_name, 'was added to zip')
+
+                    zip_file.writestr(pdf_name, recorded_file.getvalue())
+                    recorded_file = []
+             
+        zip_buffer.seek(0)  # Rewind the buffer to the beginning
+        return zip_buffer
+
+def download_zip(files_to_zip, rename_db):
+    if st.button('Download ZIP of PDFs'):
+        if files_to_zip:
+            zip_buffer = create_zip(files_to_zip, rename_db)
+            st.download_button(
+                label="Download ZIP",
+                data=zip_buffer,
+                file_name="pdf_files.zip",
+                mime="application/zip",
+                icon=":material/barcode:"
+            )
+        else:
+            st.warning("Please upload some PDF files first.")
+# Bank statements
 def env_initiation():
     
+    if 'txt_upload' not in st.session_state:
+        st.session_state.txt_upload = None
     if 'rename_matrix' not in st.session_state:
         st.session_state.rename_matrix = None
     if 'raw_files' not in st.session_state:
@@ -169,28 +245,110 @@ with st.popover("Excel", use_container_width=True):
     st.markdown("excel-файл с перечнем фондов 👋")
     rename_matrix = st.file_uploader("Загрузите excel-файл с перечнем фондов", accept_multiple_files=False, type=["csv", "xlsx", "xls"])
 
-
-
-gspreadsheet = data_prep_load()
-
+app_option = st.radio("Choose AMC of interest", options=["Банковские выписки", "Выписки для Афимолла"], index=1)
 env_initiation()
 
-upload = st.file_uploader(
-    "Загружаем файлики", accept_multiple_files=True, type='pdf')
+if app_option == "Банковские выписки":
+    gspreadsheet = data_prep_load()
 
-#statements = []
-file_segregation(data=gspreadsheet)
 
-upload_db, rename_db = db_creation(data=st.session_state.recognized_files, db=gspreadsheet)
-#
-#st.dataframe(rename_db)
-add_vertical_space(6)
-#
-recongnition_status(upload, data=st.session_state.recognized_files)
-preview()
-#
-add_vertical_space(6)
-#
-look_at_fund_accounts(gspreadsheet)
-download_zip(st.session_state.files_for_zip, rename_db)
+    upload = st.file_uploader(
+        "Загружаем файлики", accept_multiple_files=True, type='pdf')
 
+    #statements = []
+    file_segregation(data=gspreadsheet)
+
+    upload_db, rename_db = db_creation(data=st.session_state.recognized_files, db=gspreadsheet)
+    #
+    #st.dataframe(rename_db)
+    add_vertical_space(6)
+    #
+    recongnition_status(upload, data=st.session_state.recognized_files)
+    preview()
+    #
+    add_vertical_space(6)
+    #
+    look_at_fund_accounts(gspreadsheet)
+    download_zip(st.session_state.files_for_zip, rename_db)
+else:
+    txt_upload = st.file_uploader(
+        "Загружаем файлики", accept_multiple_files=False, type='txt')
+    
+    st.write(txt_upload)
+    
+    if txt_upload:
+        content = txt_upload.readlines()
+        
+        reassamble = []
+
+        for line in content:
+            reassamble.append(line.decode("cp1251"))
+        
+        content = reassamble
+        content.pop()
+
+        
+        #st.write(reassamble)
+
+        #txt_upload = txt_upload.read()
+        #st.write(type(txt_upload))
+        
+        #with io.open(txt_upload, "r", encoding='cp1251') as original_file:
+            #content = original_file.read()
+            #content = original_file.readlines()
+            #content.pop()
+
+        empty_container = []
+        found_accounts = []
+
+        accounts, txt_files = write_files(empty_container, content)
+        for account_string in accounts:
+            result = find_account(account_string[0])
+            #st.write(result)
+            found_accounts.append(result)
+
+        txt_files_joined = []
+        for file in txt_files:
+            file_joined = ''.join(file)
+            txt_files_joined.append(file_joined)
+
+        st.write(txt_files_joined[-1])
+##########################################
+
+
+        def TXT_zip(txt_files_joined, found_accounts):
+            zip_buffer = io.BytesIO()
+            
+            # Create a Zip file in memory
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+
+                for recorded_file, recorded_name in zip(txt_files_joined, found_accounts):
+                        
+                        file_content = recorded_file.encode('cp1251')
+                        zip_file.writestr(recorded_name + '.txt', file_content)
+            
+            zip_buffer.seek(0)
+            return zip_buffer
+        
+
+        def download_txt_zip(files_to_zip, rename_db):
+            if st.button('Download ZIP of PDFs'):
+                if files_to_zip:
+                    zip_buffer = TXT_zip(files_to_zip, rename_db)
+                    st.download_button(
+                        label="Download ZIP",
+                        data=zip_buffer,
+                        file_name="pdf_files.zip",
+                        mime="application/zip",
+                        icon=":material/barcode:"
+                    )
+                else:
+                    st.warning("Please upload some PDF files first.")
+
+#############################################
+        download_txt_zip(txt_files_joined, found_accounts)
+
+
+        
+    else:
+        st.warning("txt-file не загружен")
