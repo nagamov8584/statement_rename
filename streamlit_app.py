@@ -81,7 +81,7 @@ def create_zip_txt(files_to_zip, rename_list):
         return zip_buffer
 
 def download_zip(files_to_zip, rename_db):
-    if st.button('Download ZIP of PDFs'):
+    if st.button('Download ZIP of TXTs'):
         if files_to_zip:
             zip_buffer = create_zip(files_to_zip, rename_db)
             st.download_button(
@@ -92,7 +92,7 @@ def download_zip(files_to_zip, rename_db):
                 icon=":material/barcode:"
             )
         else:
-            st.warning("Please upload some PDF files first.")
+            st.warning("Please upload some TXT files first.")
 # Bank statements
 def env_initiation():
     
@@ -274,7 +274,7 @@ else:
     txt_upload = st.file_uploader(
         "Загружаем файлики", accept_multiple_files=False, type='txt')
     
-    st.write(txt_upload)
+    #st.write(txt_upload)
     
     if txt_upload:
         content = txt_upload.readlines()
@@ -312,7 +312,7 @@ else:
             file_joined = ''.join(file)
             txt_files_joined.append(file_joined)
 
-        st.write(txt_files_joined[-1])
+        #st.write(txt_files_joined[-1])
 ##########################################
 
 
@@ -332,18 +332,18 @@ else:
         
 
         def download_txt_zip(files_to_zip, rename_db):
-            if st.button('Download ZIP of PDFs'):
+            if st.button('Download ZIP of TXTs'):
                 if files_to_zip:
                     zip_buffer = TXT_zip(files_to_zip, rename_db)
                     st.download_button(
                         label="Download ZIP",
                         data=zip_buffer,
-                        file_name="pdf_files.zip",
+                        file_name="txt_files.zip",
                         mime="application/zip",
                         icon=":material/barcode:"
                     )
                 else:
-                    st.warning("Please upload some PDF files first.")
+                    st.warning("Please upload some TXT files first.")
 
 #############################################
         download_txt_zip(txt_files_joined, found_accounts)
